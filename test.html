@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sounds</title>
+</head>
+<body>
+
+<h1>Welcome</h1>
+
+<h3>Please Record your voice here</h3>
+<button id="btn-start-recording">Start Recording</button>
+<button id="btn-stop-recording" disabled="disabled">Stop Recording</button>
+
+
+<hr>
+<audio id="my-preview" controls autoplay></audio>
+
+
+<script>
+    // Store a reference of the preview audio element and a global reference to the recorder instance
+    var audio = document.getElementById('my-preview');
+    var recorder;
+
+    // When the user clicks on start audio recording
+    document.getElementById('btn-start-recording').addEventListener("click", function(){
+        // Disable start recording button
+        this.disabled = true;
+
+        // Request access to the media devices
+        navigator.mediaDevices.getUserMedia({
+            audio: true
+        }).then(function(stream) {
+            // Display a live preview on the audio element of the page
+            setSrcObject(stream, audio);
+
+            // Start to display the preview on the video element
+            // and mute the audio to disable the echo issue !
+            audio.play();
+            audio.muted = true;
+
+            // Initialize the recorder
+            recorder = new RecordRTCPromisesHandler(stream, {
+                mimeType: 'audio/webm',
+                bitsPerSecond: 128000
+            });
+
+            // Start recording the audio
+            recorder.startRecording().then(function() {
+                console.info('Recording audio ...');
+            }).catch(function(error) {
+                console.error('Cannot start audio recording: ', error);
+            });
+
+            // release stream on stopRecording
+            recorder.stream = stream;
+
+            // Enable stop recording button
+            document.getElementById('btn-stop-recording').disabled = false;
+        }).catch(function(error) {
+            console.error("Cannot access media devices: ", error);
+        });
+    }, false);
+
+    // When the user clicks on Stop audio recording
+    document.getElementById('btn-stop-recording').addEventListener("click", function(){
+        this.disabled = true;
+
+        recorder.stopRecording().then(function() {
+            console.info('stopRecording success');
+
+            // Retrieve recorded audio as blob and display in the preview element
+            var audioBlob = recorder.getBlob();
+            audio.src = URL.createObjectURL(audioBlob);
+            audio.play();
+
+            // Unmute audio on preview
+            audio.muted = false;
+
+            // Stop the device streaming
+            recorder.stream.stop();
+
+            // Enable record button again !
+            document.getElementById('btn-start-recording').disabled = false;
+        }).catch(function(error) {
+            console.error('stopRecording failure', error);
+        });
+    }, false);
+
+var aud = document.getElementById("my-preview");
+aud.onplay = function() {
+  alert("The audio has started to play");
+};
+
+
+// user completed recording and stream is available
+player.on('finishRecord', function() {
+    // the blob object contains the recorded data that
+    // can be downloaded by the user, stored on server etc.
+    console.log('finished recording: ', player.recordedData);
+
+    // Create an instance of FormData and append the audio parameter that
+    // will be interpreted in the server as a file
+    var formData = new FormData();
+    formData.append('audio', player.recordedData.audio);
+
+    // Execute the ajax request, in this case we have a very simple PHP script
+    // that accepts and save the uploaded "audio" file
+    xhr('./upload-audio.php', formData, function (fName) {
+        console.log("audio succesfully uploaded !");
+    });
+
+    // Helper function to send
+    function xhr(url, data, callback) {
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function () {
+            if (request.readyState == 4 && request.status == 200) {
+                callback(location.href + request.responseText);
+            }
+        };
+        request.open('POST', url);
+        request.send(data);
+    }
+});
+</script>
+
+
+</body>
+</html>
