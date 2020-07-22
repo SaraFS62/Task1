@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sounds</title>
+</head>
+<body>
+
+<h1>Welcome</h1>
+<h3>Please Record your voice here</h3>
+
+
+<button id="btn-start-recording">Start Recording</button>
+<button id="btn-stop-recording" disabled="disabled">Stop Recording</button>
+
+
+<hr>
+<audio id="my-preview" controls autoplay></audio>
+
+
+<script>
+    var audio = document.getElementById('my-preview');
+    var recorder;
+
+    // When the user clicks on start audio recording
+    document.getElementById('btn-start-recording').addEventListener("click", function(){
+
+        this.disabled = true;
+
+
+        navigator.mediaDevices.getUserMedia({
+            audio: true
+        }).then(function(stream) {
+
+            setSrcObject(stream, audio);
+
+
+            audio.play();
+            audio.muted = true;
+
+
+            recorder = new RecordRTCPromisesHandler(stream, {
+                mimeType: 'audio/webm',
+                bitsPerSecond: 128000
+            });
+
+            // Start recording the audio
+            recorder.startRecording().then(function() {
+                console.info('Recording audio ...');
+            }).catch(function(error) {
+                console.error('Cannot start audio recording: ', error);
+            });
+
+
+            recorder.stream = stream;
+
+
+            document.getElementById('btn-stop-recording').disabled = false;
+        }).catch(function(error) {
+            console.error("Cannot access media devices: ", error);
+        });
+    }, false);
+
+
+    document.getElementById('btn-stop-recording').addEventListener("click", function(){
+        this.disabled = true;
+
+        recorder.stopRecording().then(function() {
+            console.info('stopRecording success');
+
+
+            var audioBlob = recorder.getBlob();
+            audio.src = URL.createObjectURL(audioBlob);
+            audio.play();
+
+            // Unmute audio on preview
+            audio.muted = false;
+
+            // Stop the device streaming
+            recorder.stream.stop();
+
+
+            document.getElementById('btn-start-recording').disabled = false;
+        }).catch(function(error) {
+            console.error('stopRecording failure', error);
+        });
+    }, false);
+
+var aud = document.getElementById("my-preview");
+aud.onplay = function() {
+  alert("The audio has started to play");
+};
+
+
+
+player.on('finishRecord', function() {
+
+    console.log('finished recording: ', player.recordedData);
+
+
+    var formData = new FormData();
+    formData.append('audio', player.recordedData.audio);
+
+
+    xhr('./upload-audio.php', formData, function (fName) {
+        console.log("audio succesfully uploaded !");
+    });
+
+
+    function xhr(url, data, callback) {
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function () {
+            if (request.readyState == 4 && request.status == 200) {
+                callback(location.href + request.responseText);
+            }
+        };
+        request.open('POST', url);
+        request.send(data);
+    }
+});
+</script>
+
+
+</body>
+</html>
